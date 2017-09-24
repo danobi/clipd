@@ -14,12 +14,14 @@ PORT = 3399
 clipboard = None
 rwlock = Lock()
 
+
 def _get_len(buf):
     '''Returns the LEN header, if present, on a partially filled buffer'''
-    for idx,c in enumerate(buf):
+    for idx, c in enumerate(buf):
         if c in string.ascii_letters:
             return int(buf[:idx])
     return None
+
 
 def _prep_resp(status, payload):
     '''Returns a composed response in bytes form'''
@@ -28,13 +30,16 @@ def _prep_resp(status, payload):
     resp = bytes(resp, 'ascii')
     return resp
 
+
 def _error_out_and_close(sock, exc):
     response = _prep_resp(HDR_ERR, str(exc))
     sock.sendall(response)
     sock.close()
 
+
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
+
 
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -111,6 +116,7 @@ def main():
         server.serve_forever()
     except KeyboardInterrupt as e:
         server.shutdown()
+
 
 if __name__ == '__main__':
     main()

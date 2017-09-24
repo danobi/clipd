@@ -9,10 +9,12 @@ import sys
 from defs import *
 
 HOST = 'localhost'
-PORT = 3399 
+PORT = 3399
+
 
 class ClipdException(Exception):
     pass
+
 
 def _sock_send_recv(msg):
     '''Sends a message to the server and returns the response'''
@@ -27,9 +29,10 @@ def _sock_send_recv(msg):
             resp += data
     return resp
 
+
 def _parse_resp(resp):
     '''Returns a (hdr, payload) tuple from a raw response'''
-    for idx,c in enumerate(resp):
+    for idx, c in enumerate(resp):
         if c in string.ascii_letters:
             msg_len = int(resp[:idx])
             resp = resp[idx:]
@@ -46,8 +49,10 @@ def _parse_resp(resp):
     resp = resp[len(h):]
     msg_len -= len(h)
     if msg_len != len(resp):
-        raise ClipdException('Message payload corrupted -- lengths do not match')
+        raise ClipdException(
+            'Message payload corrupted -- lengths do not match')
     return (h, resp)
+
 
 def pull():
     '''Returns clipboard contents from server'''
@@ -60,6 +65,7 @@ def pull():
         raise ClipdException(payload)
     return payload
 
+
 def push(txt):
     '''Pushes new clipboard contents to server'''
     req = str(len(HDR_PUSH) + len(txt)) + HDR_PUSH + txt
@@ -69,6 +75,7 @@ def push(txt):
     hdr, payload = _parse_resp(resp)
     if (hdr != HDR_OK):
         raise ClipdException(payload)
+
 
 def main(args):
     try:
@@ -85,5 +92,5 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--pull', action='store_true',
-            help='pull clipboard contents from server')
+                        help='pull clipboard contents from server')
     main(parser.parse_args())
