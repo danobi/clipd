@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import configparser
 import logging
 import socket
 import string
@@ -8,19 +9,16 @@ import sys
 
 from defs import *
 
-HOST = 'localhost'
-PORT = 3399
-
 
 class ClipdException(Exception):
     pass
 
 
-def _sock_send_recv(msg):
+def _sock_send_recv(msg, server, port):
     '''Sends a message to the server and returns the response'''
     resp = ""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((HOST, PORT))
+        s.connect((server, port))
         s.sendall(msg)
         while True:
             data = str(s.recv(1024), 'ascii')
@@ -54,11 +52,11 @@ def _parse_resp(resp):
     return (h, resp)
 
 
-def pull():
+def pull(server, port):
     '''Returns clipboard contents from server'''
     req = str(len(HDR_PULL)) + HDR_PULL
     req = bytes(req, 'ascii')
-    resp = _sock_send_recv(req)
+    resp = _sock_send_recv(req, server, port)
 
     hdr, payload = _parse_resp(resp)
     if (hdr != HDR_OK):
@@ -66,26 +64,32 @@ def pull():
     return payload
 
 
-def push(txt):
+def push(txt, server, port):
     '''Pushes new clipboard contents to server'''
     req = str(len(HDR_PUSH) + len(txt)) + HDR_PUSH + txt
     req = bytes(req, 'ascii')
-    resp = _sock_send_recv(req)
+    resp = _sock_send_recv(req, server, port)
 
     hdr, payload = _parse_resp(resp)
     if (hdr != HDR_OK):
         raise ClipdException(payload)
 
 
-def main(args):
+def main(args, config):
     try:
+        server = config['Server'].get('Address', 'localhost')
+        port = int(config['Server'].get('Port', 3399))
+
         if args.pull:
-            sys.stdout.write(pull())
+            sys.stdout.write(pull(server, port))
             sys.stdout.flush()
         else:
-            push(sys.stdin.read())
+            push(sys.stdin.read(), server, port)
     except ClipdException as e:
         sys.stderr.write(str(e) + '\n')
+        sys.exit(1)
+    except configparser.Error as e:
+        sys.stderr.write('Error parsing config.ini: {}'.format(str(e)))
         sys.exit(1)
 
 
@@ -93,4 +97,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--pull', action='store_true',
                         help='pull clipboard contents from server')
-    main(parser.parse_args())
+
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    main(parser.parse_args(), config)
