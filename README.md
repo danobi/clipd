@@ -7,6 +7,12 @@ work. You need a way to share clipboard contents between all these machines.
 `clipd` solves this problem for you. Imagine `xclip` but with a server and
 clients.
 
+## Installation
+
+1. Stand up `clipd_server.py` on a remote (or local) host somewhere
+2. Copy `config.ini` into `~/.config/clipd/config.ini` on all your client machines. Make sure you update the config.
+3. Symlink `clipd` into `/usr/local/bin`
+
 ## Protocol
 
 `clipd` communicates over TCP using ASCII encoded data (please don't hate me,

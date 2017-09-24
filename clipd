@@ -7,6 +7,8 @@ import socket
 import string
 import sys
 
+from pathlib import Path
+
 from defs import *
 
 
@@ -99,5 +101,5 @@ if __name__ == '__main__':
                         help='pull clipboard contents from server')
 
     config = configparser.ConfigParser()
-    config.read('config.ini')
+    config.read(str(Path.home()) + '/.config/clipd/config.ini')
     main(parser.parse_args(), config)
