@@ -45,3 +45,7 @@ There are two types of responses:
 
     If the request failed, then ERR is returned. The payload is the error
     message, if any.
+
+## TODO
+
+[ ] Set up private key authentication for security
