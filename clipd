@@ -6,8 +6,9 @@ import logging
 import socket
 import string
 import sys
-
 from pathlib import Path
+
+import socks
 
 from defs import *
 
@@ -16,18 +17,27 @@ class ClipdException(Exception):
     pass
 
 
-def _sock_send_recv(msg, server, port):
-    '''Sends a message to the server and returns the response'''
+def _sock_send_recv_conn(msg, server, port, sock):
     resp = ""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((server, port))
-        s.sendall(msg)
-        while True:
-            data = str(s.recv(1024), 'ascii')
-            if not data:
-                break
-            resp += data
+    sock.connect((server, port))
+    sock.sendall(msg)
+    while True:
+        data = str(sock.recv(1024), 'ascii')
+        if not data:
+            break
+        resp += data
     return resp
+
+
+def _sock_send_recv(msg, server, port, proxy_server=None, proxy_port=None):
+    '''Sends a message to the server and returns the response'''
+    if proxy_server and proxy_port:
+        with socks.socksocket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.set_proxy(socks.SOCKS5, proxy_server, proxy_port)
+            return _sock_send_recv_conn(msg, server, port, s)
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return _sock_send_recv_conn(msg, server, port, s)
 
 
 def _parse_resp(resp):
@@ -54,11 +64,11 @@ def _parse_resp(resp):
     return (h, resp)
 
 
-def pull(server, port):
+def pull(server, port, proxy_server=None, proxy_port=None):
     '''Returns clipboard contents from server'''
     req = str(len(HDR_PULL)) + HDR_PULL
     req = bytes(req, 'ascii')
-    resp = _sock_send_recv(req, server, port)
+    resp = _sock_send_recv(req, server, port, proxy_server, proxy_port)
 
     hdr, payload = _parse_resp(resp)
     if (hdr != HDR_OK):
@@ -66,11 +76,11 @@ def pull(server, port):
     return payload
 
 
-def push(txt, server, port):
+def push(txt, server, port, proxy_server=None, proxy_port=None):
     '''Pushes new clipboard contents to server'''
     req = str(len(HDR_PUSH) + len(txt)) + HDR_PUSH + txt
     req = bytes(req, 'ascii')
-    resp = _sock_send_recv(req, server, port)
+    resp = _sock_send_recv(req, server, port, proxy_server, proxy_port)
 
     hdr, payload = _parse_resp(resp)
     if (hdr != HDR_OK):
@@ -81,15 +91,24 @@ def main(args, config):
     try:
         server = config['Server'].get('Address', 'localhost')
         port = int(config['Server'].get('Port', 3399))
+        proxy_server = config['Proxy'].get(
+            'Address', '') if 'Proxy' in config.sections() else ''
+        proxy_port = int(
+            config['Proxy'].get(
+                'Port',
+                '0')) if 'Proxy' in config.sections() else 0
 
         if args.pull:
-            sys.stdout.write(pull(server, port))
+            data = pull(server, port, proxy_server, proxy_port)
+            sys.stdout.write(data)
             sys.stdout.flush()
         else:
-            push(sys.stdin.read(), server, port)
+            push(sys.stdin.read(), server, port, proxy_server, proxy_port)
+
     except ClipdException as e:
         sys.stderr.write(str(e) + '\n')
         sys.exit(1)
+
     except configparser.Error as e:
         sys.stderr.write('Error parsing config.ini: {}'.format(str(e)))
         sys.exit(1)

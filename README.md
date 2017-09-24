@@ -12,6 +12,12 @@ clients.
 1. Stand up `clipd_server.py` on a remote (or local) host somewhere
 2. Copy `config.ini` into `~/.config/clipd/config.ini` on all your client machines. Make sure you update the config.
 3. Symlink `clipd` into `/usr/local/bin`
+4. Install `pysocks` pip package
+
+## Configuration
+
+See provided `config.ini` for example configuration. `clipd` supports SOCKS5 proxies. If you don't wish to use that
+feature, then remove the section from the config.
 
 ## Protocol
 
