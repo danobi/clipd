@@ -1,0 +1,4 @@
+HDR_PUSH = 'PUSH'
+HDR_PULL = 'PULL'
+HDR_OK = 'OK'
+HDR_ERR = 'ERR'
