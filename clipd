@@ -32,7 +32,7 @@ def _sock_send_recv_conn(msg, server, port, sock):
 def _sock_send_recv(msg, server, port, proxy_server=None, proxy_port=None):
     '''Sends a message to the server and returns the response'''
     if proxy_server and proxy_port:
-        with socks.socksocket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        with socks.socksocket(socket.AF_INET6, socket.SOCK_STREAM) as s:
             s.set_proxy(socks.SOCKS5, proxy_server, proxy_port)
             return _sock_send_recv_conn(msg, server, port, s)
 
