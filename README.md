@@ -60,4 +60,4 @@ There are two types of responses:
 
 ## TODO
 
-[ ] Set up private key authentication for security
+- [ ] Set up private key authentication for security
