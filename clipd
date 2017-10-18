@@ -6,7 +6,7 @@ import logging
 import socket
 import string
 import sys
-from pathlib import Path
+from os.path import expanduser
 
 import socks
 
@@ -120,5 +120,5 @@ if __name__ == '__main__':
                         help='pull clipboard contents from server')
 
     config = configparser.ConfigParser()
-    config.read(str(Path.home()) + '/.config/clipd/config.ini')
+    config.read(str(expanduser("~")) + '/.config/clipd/config.ini')
     main(parser.parse_args(), config)
