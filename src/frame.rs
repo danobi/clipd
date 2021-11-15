@@ -94,7 +94,6 @@ const RESPONSE_PUSH_ERR: u8 = 101;
 const RESPONSE_PULL_OK: u8 = 102;
 const RESPONSE_PULL_ERR: u8 = 103;
 
-#[allow(dead_code)]
 pub enum ResponseFrame {
     /// Push to server was OK
     PushOk,

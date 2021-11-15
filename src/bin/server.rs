@@ -8,8 +8,7 @@ use structopt::StructOpt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 
-mod frame;
-use frame::{RequestFrame, ResponseFrame};
+use clipd::frame::{RequestFrame, ResponseFrame};
 
 #[derive(StructOpt, Debug)]
 struct Opt {
