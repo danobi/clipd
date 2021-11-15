@@ -59,8 +59,8 @@ async fn handle_client(mut client: TcpStream, addr: SocketAddr, clipboard: Arc<M
 
 async fn serve(port: u16) -> Result<()> {
     let clipboard: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::with_capacity(4096)));
-    let listener = TcpListener::bind(("localhost", port)).await?;
-    info!("Listening on: localhost:{}", port);
+    let listener = TcpListener::bind(("0.0.0.0", port)).await?;
+    info!("Listening on: 0.0.0.0:{}", port);
 
     loop {
         // Handle clients concurrently
