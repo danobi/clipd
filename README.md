@@ -7,57 +7,20 @@ work. You need a way to share clipboard contents between all these machines.
 `clipd` solves this problem for you. Imagine `xclip` but with a server and
 clients.
 
-## Installation
+## Build
 
-1. Stand up `clipd_server.py` on a remote (or local) host somewhere
-2. Copy `config.ini` into `~/.config/clipd/config.ini` on all your client machines. Make sure you update the config.
-3. Symlink `clipd` into `/usr/local/bin`
-4. Install `pysocks` pip package
+1. `rustup target add x86_64-unknown-linux-musl`
+1. `cargo build --target x86_64-unknown-linux-musl --release`
 
-## Configuration
+## Server installation
 
-See provided `config.ini` for example configuration. `clipd` supports SOCKS5 proxies. If you don't wish to use that
-feature, then remove the section from the config.
+1. `scp ./target/x86_64-unknown-linux-musl/release/clipd_server root@<server>:/usr/local/bin`
+1. `scp ./etc/clipd.service root@<server>:/etc/systemd/system`
+1. `ssh root@<server> systemctl enable --now clipd`
 
-## Protocol
+## Client installation
 
-`clipd` communicates over TCP using ASCII encoded data (please don't hate me,
-utf-8 people). The wire format is as follows:
-
-    +---+------+-------+
-    |LEN|HEADER|PAYLOAD|
-    +---+------+-------+
-
-where `LEN` is the total number of characters in the message (`LEN` excluded).
-
-### Client -> Server
-
-There are two types of requests:
-
-1. PUSH
-
-    A push is a request to add something to the clipboard. The header is `PUSH`
-    and the payload is the future contents of the clipboard.
-
-2. PULL
-
-    A pull is a request for the current contents of the clipboard. The header is
-    `PULL` and there is no payload.
-
-### Server -> Client
-
-There are two types of responses:
-
-1. OK
-
-    If the request succeeded, then an OK is returned to the client. The payload
-    is either empty or the contents of the clipboard, depending on the request.
-
-2. ERR
-
-    If the request failed, then ERR is returned. The payload is the error
-    message, if any.
-
-## TODO
-
-- [ ] Set up private key authentication for security
+1. `cp ./target/x86_64-unknown-linux-musl/release/clipd /usr/local/bin`
+1. `mkdir -p ~/.config/clipd`
+1. `cp ./etc/client.toml ~/.config/clipd`
+1. Modify `~/.config/clipd/client.toml`'s `server` field to point to server
