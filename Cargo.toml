@@ -2,7 +2,7 @@
 name = "clipd"
 version = "0.1.0"
 edition = "2018"
-default-run = "server"
+default-run = "clipd_server"
 
 [dependencies]
 anyhow = "1.0"
@@ -12,3 +12,11 @@ serde = { version = "1.0", features = ["derive"] }
 structopt = "0.3"
 tokio = { version = "1.13", features = ["full"] }
 toml = "0.5"
+
+[[bin]]
+name = "clipd_server"
+path = "src/bin/server.rs"
+
+[[bin]]
+name = "clipd"
+path = "src/bin/client.rs"
