@@ -1,6 +1,9 @@
+use std::fs::read_to_string;
 use std::io::{self, Read};
+use std::path::PathBuf;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
+use serde::Deserialize;
 use structopt::StructOpt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -9,15 +12,22 @@ use clipd::frame::{RequestFrame, ResponseFrame};
 
 #[derive(StructOpt, Debug)]
 struct Opt {
-    /// clipd server to connect to
-    #[structopt(short, long, default_value = "localhost")]
-    server: String,
-    /// Port to run server on
-    #[structopt(short, long, default_value = "3399")]
-    port: u16,
     /// Pull remote clipboard
     #[structopt(long)]
     pull: bool,
+    #[structopt(
+        short,
+        long,
+        default_value = "~/.config/clipd/client.toml",
+        parse(from_os_str)
+    )]
+    config: PathBuf,
+}
+
+#[derive(Deserialize, Debug)]
+struct Config {
+    server: String,
+    port: u16,
 }
 
 async fn pull(socket: &mut TcpStream) -> Result<()> {
@@ -69,8 +79,16 @@ async fn push(socket: &mut TcpStream) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts = Opt::from_args();
+    let config_str = read_to_string(&opts.config).with_context(|| {
+        format!(
+            "Failed to read config file at {}",
+            opts.config.to_string_lossy()
+        )
+    })?;
+    let config: Config =
+        toml::from_str(&config_str).with_context(|| "Failed to parse config file".to_string())?;
 
-    let mut socket = TcpStream::connect(format!("{}:{}", opts.server, opts.port)).await?;
+    let mut socket = TcpStream::connect(format!("{}:{}", config.server, config.port)).await?;
     if opts.pull {
         pull(&mut socket).await
     } else {
