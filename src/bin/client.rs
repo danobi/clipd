@@ -3,6 +3,7 @@ use std::io::{self, Read};
 use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
+use dirs::home_dir;
 use serde::Deserialize;
 use structopt::StructOpt;
 use tokio::io::AsyncWriteExt;
@@ -15,13 +16,11 @@ struct Opt {
     /// Pull remote clipboard
     #[structopt(long)]
     pull: bool,
-    #[structopt(
-        short,
-        long,
-        default_value = "~/.config/clipd/client.toml",
-        parse(from_os_str)
-    )]
-    config: PathBuf,
+    /// Path to client config file
+    ///
+    /// Default is ~/.config/clipd/client.toml
+    #[structopt(short, long, parse(from_os_str))]
+    config: Option<PathBuf>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -79,10 +78,22 @@ async fn push(socket: &mut TcpStream) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let opts = Opt::from_args();
-    let config_str = read_to_string(&opts.config).with_context(|| {
+
+    // Parse config
+    let config_path = match opts.config {
+        Some(p) => p,
+        None => match home_dir() {
+            Some(mut home) => {
+                home.push(".config/clipd/client.toml");
+                home
+            }
+            None => bail!("Could not retrieve home directory"),
+        },
+    };
+    let config_str = read_to_string(&config_path).with_context(|| {
         format!(
             "Failed to read config file at {}",
-            opts.config.to_string_lossy()
+            config_path.to_string_lossy()
         )
     })?;
     let config: Config =

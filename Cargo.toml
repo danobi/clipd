@@ -6,6 +6,7 @@ default-run = "clipd_server"
 
 [dependencies]
 anyhow = "1.0"
+dirs = "4.0"
 log = "0.4"
 simple_logger = "1.13"
 serde = { version = "1.0", features = ["derive"] }
