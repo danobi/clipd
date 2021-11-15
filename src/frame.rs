@@ -74,9 +74,9 @@ impl RequestFrame {
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
             Self::Push(bytes) => {
-                let mut r = Vec::with_capacity(2 + bytes.len());
-                r.push(CLIPD_MAGIC.to_be());
-                r.push(REQUEST_PUSH.to_be());
+                let mut r = Vec::with_capacity(10 + bytes.len());
+                r.push(CLIPD_MAGIC);
+                r.push(REQUEST_PUSH);
                 r.extend((bytes.len() as u64).to_be_bytes());
                 r.extend(bytes);
 
@@ -94,6 +94,7 @@ const RESPONSE_PUSH_ERR: u8 = 101;
 const RESPONSE_PULL_OK: u8 = 102;
 const RESPONSE_PULL_ERR: u8 = 103;
 
+#[allow(dead_code)]
 pub enum ResponseFrame {
     /// Push to server was OK
     PushOk,
@@ -106,11 +107,67 @@ pub enum ResponseFrame {
 }
 
 impl ResponseFrame {
-    pub fn from_bytes(bytes: &[u8]) -> Result<ResponseFrame> {
-        unimplemented!();
+    pub async fn from_socket(socket: &mut TcpStream) -> Result<ResponseFrame> {
+        // All responses will have the same 2 byte header, so grab that first
+        // and switch based on the reponse type
+        let mut header = [0; 2];
+        socket.read_exact(&mut header).await?;
+
+        // Toss out invalid requests (common for port scanners to trip over)
+        if header[0] != CLIPD_MAGIC {
+            bail!("Provided magic ({}) != magic ({})", header[0], CLIPD_MAGIC);
+        }
+
+        let ty = header[1];
+        let resp = match ty {
+            RESPONSE_PUSH_OK => ResponseFrame::PushOk,
+            RESPONSE_PUSH_ERR | RESPONSE_PULL_OK | RESPONSE_PULL_ERR => {
+                // Grab the length of the payload
+                let mut len = [0; 8];
+                socket.read_exact(&mut len).await?;
+                let len = u64::from_be_bytes(len);
+
+                // Hard cap the payload to be 10M
+                if len > (10 << 20) {
+                    bail!("Payload too large ({}MB)", len >> 20);
+                }
+
+                // Read the payload
+                let mut payload = vec![0; len as usize];
+                socket.read_exact(&mut payload).await?;
+
+                match ty {
+                    RESPONSE_PUSH_ERR => ResponseFrame::PushErr(payload),
+                    RESPONSE_PULL_OK => ResponseFrame::PullOk(payload),
+                    RESPONSE_PULL_ERR => ResponseFrame::PullErr(payload),
+                    _ => panic!("Invalid type: {}", ty),
+                }
+            }
+            _ => bail!("Unrecognized response type: {}", ty),
+        };
+
+        Ok(resp)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        unimplemented!();
+        match self {
+            Self::PushOk => {
+                vec![CLIPD_MAGIC, RESPONSE_PUSH_OK]
+            }
+            Self::PushErr(bytes) | Self::PullOk(bytes) | Self::PullErr(bytes) => {
+                let mut r = Vec::with_capacity(10 + bytes.len());
+                r.push(CLIPD_MAGIC);
+                r.push(match self {
+                    Self::PushErr(_) => RESPONSE_PUSH_ERR,
+                    Self::PullOk(_) => RESPONSE_PULL_OK,
+                    Self::PullErr(_) => RESPONSE_PULL_ERR,
+                    Self::PushOk => panic!("Invalid PushOk type!"),
+                });
+                r.extend((bytes.len() as u64).to_be_bytes());
+                r.extend(bytes);
+
+                r
+            }
+        }
     }
 }
