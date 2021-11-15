@@ -1,6 +1,6 @@
-use std::convert::TryInto;
-
 use anyhow::{bail, Result};
+use tokio::io::AsyncReadExt;
+use tokio::net::TcpStream;
 
 // clipd protocol (request and response):
 //
@@ -17,6 +17,8 @@ use anyhow::{bail, Result};
 // +-----+---------+
 
 /// Magic for all frames
+///
+/// Note that u8's don't have endianness so we don't need to swap bytes
 const CLIPD_MAGIC: u8 = 0b10010101;
 
 const REQUEST_PUSH: u8 = 55;
@@ -29,59 +31,37 @@ pub enum RequestFrame {
     Pull,
 }
 
-pub enum RequestFramePeekLen {
-    /// Payload length is enclosed
-    ///
-    /// 0 if no payload
-    Len(u64),
-    /// Not enough bytes of the header were passed in
-    NotEnoughBytes,
-}
-
-fn validate_magic(bytes: &[u8]) -> Result<()> {
-    let magic = bytes[0]; // u8 does not have endianness
-    if magic != CLIPD_MAGIC {
-        bail!("Provided magic ({}) != magic ({})", magic, CLIPD_MAGIC);
-    }
-
-    Ok(())
-}
-
 impl RequestFrame {
-    /// Peek how many bytes long the payload is
-    pub fn peek_len(bytes: &[u8]) -> Result<RequestFramePeekLen> {
-        if bytes.len() < 10 {
-            return Ok(RequestFramePeekLen::NotEnoughBytes);
-        }
-
-        validate_magic(bytes)?;
-
-        let ty = bytes[1]; // u8 does not have endianness
-        if ty == REQUEST_PUSH {
-            let len = u64::from_be_bytes(bytes[2..10].try_into().unwrap());
-            return Ok(RequestFramePeekLen::Len(len));
-        }
-
-        return Ok(RequestFramePeekLen::Len(0));
-    }
-
     /// Construct a `RequestFrame` from bytes on the wire
-    pub fn from_bytes(bytes: &[u8]) -> Result<RequestFrame> {
-        if bytes.len() < 2 {
-            bail!("Request must be at least 2 bytes for magic+type");
+    pub async fn from_socket(socket: &mut TcpStream) -> Result<RequestFrame> {
+        // All requests will have the same 2 byte header, so grab that first
+        // and switch based on the request type
+        let mut header = [0; 2];
+        socket.read_exact(&mut header).await?;
+
+        // Toss out invalid requests (common for port scanners to trip over)
+        if header[0] != CLIPD_MAGIC {
+            bail!("Provided magic ({}) != magic ({})", header[0], CLIPD_MAGIC);
         }
 
-        validate_magic(bytes)?;
-
-        let ty = bytes[1]; // u8 does not have endianness
+        let ty = header[1];
         let req = match ty {
             REQUEST_PUSH => {
-                let len = u64::from_be_bytes(bytes[2..10].try_into().unwrap());
-                if (bytes.len() - 10) as u64 != len {
-                    bail!("REQUEST_PUSH len != payload len");
+                // Grab the length of the payload
+                let mut len = [0; 8];
+                socket.read_exact(&mut len).await?;
+                let len = u64::from_be_bytes(len);
+
+                // Hard cap the payload to be 10M
+                if len > (10 << 20) {
+                    bail!("Payload too large ({}MB)", len >> 20);
                 }
 
-                RequestFrame::Push(bytes[10..].to_vec())
+                // Read the payload
+                let mut payload = vec![0; len as usize];
+                socket.read_exact(&mut payload).await?;
+
+                RequestFrame::Push(payload)
             }
             REQUEST_PULL => RequestFrame::Pull,
             _ => bail!("Unrecognized request type: {}", ty),
