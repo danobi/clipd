@@ -41,7 +41,7 @@ async fn pull(socket: &mut TcpStream) -> Result<()> {
         ResponseFrame::PushErr(_) => bail!("Unexpected response: PushErr"),
         ResponseFrame::PullOk(bytes) => {
             let payload = String::from_utf8(bytes)?;
-            println!("{}", payload);
+            print!("{}", payload);
             Ok(())
         }
         ResponseFrame::PullErr(bytes) => {
