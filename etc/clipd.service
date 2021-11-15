@@ -1,0 +1,11 @@
+[Unit]
+Description=Distributed clipboard server
+After=system.slice
+
+[Service]
+ExecStart=/usr/local/bin/clipd_server
+Restart=always
+SyslogIdentifier=clipd_server
+
+[Install]
+WantedBy=multi-user.target
