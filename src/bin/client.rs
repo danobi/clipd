@@ -14,7 +14,7 @@ use clipd::frame::{RequestFrame, ResponseFrame};
 #[derive(StructOpt, Debug)]
 struct Opt {
     /// Pull remote clipboard
-    #[structopt(long)]
+    #[structopt(short, long)]
     pull: bool,
     /// Path to client config file
     ///
